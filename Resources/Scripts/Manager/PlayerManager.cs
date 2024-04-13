@@ -50,4 +50,12 @@ public class PlayerManager : UdonSharpBehaviour
             p.SetJob();
         }
     }
+    // @ All : Joined && p.id same
+    public void ConfirmJob() {
+        foreach (Player p in players) {
+            if (!p.IsJoined || p.id != Networking.LocalPlayer.playerId)
+                continue;
+            p.ConfirmJob();
+        }
+    }
 }

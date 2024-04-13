@@ -21,38 +21,62 @@ public enum JOB {
     INVESTIGATOR = 2,
     ACCOMPLICE = 3,
     WITNESS = 4,
-    DETECTIVE = 5
+    DETECTIVE = 5,
+    SECRET = 6
 }
 
 public class JobManager : UdonSharpBehaviour
 {
     public GameManager manager;
     public Sprite[] Jobs;
-    [UdonSynced] public int[] shuffledJobs;
+    [UdonSynced] public int[] shuffledJobs, tempJobs;
 
     public void Shuffle() {
-        Setting();
-        int i = shuffledJobs.Length;
-        while (i > 1) {
-            --i;
-            int k = Random.Range(0, i + 1);
-            int temp = shuffledJobs[i];
-            shuffledJobs[i] = shuffledJobs[k];
-            shuffledJobs[k] = temp;
+        PlayerManager pm = manager.playerManager;
+        int num = pm.cntPlayers;
+        shuffledJobs = new int[pm.players.Length];
+        tempJobs = new int[num];
+        for (int i = 0; i < shuffledJobs.Length; ++i) {
+            if (pm.players[i].IsJoined) { shuffledJobs[i] = 0; }
+            else { shuffledJobs[i] = -1; }
         }
-        
-        RequestSerialization();
-    }
-    private void Setting() {
-        int num = manager.playerManager.cntPlayers;
-        shuffledJobs = new int[num];
+        // init setting from player count
         if (num < 6) {
             for (int i = 0; i < num; ++i) {
-                if (i < 2) { shuffledJobs[i] = i; } else { shuffledJobs[i] = (int)JOB.INVESTIGATOR; }
+                if (i < 2) { tempJobs[i] = i; }
+                else { tempJobs[i] = (int)JOB.INVESTIGATOR; }
             }
         } else {
             for (int i = 0; i < num; ++i) {
-                if (i < 2) { shuffledJobs[i] = i; } else if (i == 2) { shuffledJobs[i] = (int)JOB.ACCOMPLICE; } else if (i == 3) { shuffledJobs[i] = (int)JOB.WITNESS; } else { shuffledJobs[i] = (int)JOB.INVESTIGATOR; }
+                if (i < 2) { tempJobs[i] = i; }
+                else if (i == 2) { tempJobs[i] = (int)JOB.ACCOMPLICE; }
+                else if (i == 3) { tempJobs[i] = (int)JOB.WITNESS; }
+                else { tempJobs[i] = (int)JOB.INVESTIGATOR; }
+            }
+        }
+        // shuffle jobs
+        int jobsize = tempJobs.Length;
+        while (jobsize > 1) {
+            --jobsize;
+            int k = Random.Range(0, jobsize + 1);
+            int temp = tempJobs[jobsize];
+            tempJobs[jobsize] = tempJobs[k];
+            tempJobs[k] = temp;
+        }
+
+        int cur = 0;
+        for (int i = 0; i < shuffledJobs.Length; ++i) {
+            if (shuffledJobs[i] == 0) { shuffledJobs[i] = tempJobs[cur++]; }
+        }
+
+        RequestSerialization();
+        //SendCustomEventDelayedFrames("FrameSkip", 15);        
+    }
+    public void FrameSkip() {
+        PlayerManager pm = manager.playerManager;
+        for (int i = 0; i < shuffledJobs.Length; ++i) {
+            if (pm.players[i].IsJoined) {
+                pm.players[i].SendCustomNetworkEvent(VRC.Udon.Common.Interfaces.NetworkEventTarget.All, "SetJob");
             }
         }
     }
